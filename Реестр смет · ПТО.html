@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Реестр смет · ПТО</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Golos+Text:wght@400;500;600&display=swap');
+:root{--bg:#0f1117;--surface:#161b27;--surface2:#1e2535;--border:#2a3347;--text:#e8ecf4;--text2:#8a96b0;--accent:#3d7eff;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Golos Text',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;}
+.logo{font-family:'Unbounded',sans-serif;font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;}
+.header-title{font-size:12px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.header-date{font-size:12px;color:var(--text2);white-space:nowrap;}
+
+.stats-bar{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--border);border-bottom:1px solid var(--border);}
+.stat-card{background:var(--surface);padding:14px 16px;cursor:pointer;transition:background .15s;position:relative;}
+.stat-card:hover{background:var(--surface2);}
+.stat-card.active::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--cc,var(--accent));}
+.stat-label{font-size:10px;color:var(--text2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;}
+.stat-count{font-family:'Unbounded',sans-serif;font-size:20px;font-weight:700;}
+.stat-sum{font-size:10px;color:var(--text2);margin-top:2px;}
+
+.controls{padding:10px 24px;display:flex;gap:8px;align-items:center;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.search{flex:1;min-width:160px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);font-family:'Golos Text',sans-serif;font-size:13px;outline:none;}
+.search:focus{border-color:var(--accent);}
+.search::placeholder{color:var(--text2);}
+.fbtn{padding:7px 13px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-family:'Golos Text',sans-serif;font-size:12px;cursor:pointer;white-space:nowrap;transition:all .15s;}
+.fbtn:hover{border-color:var(--accent);color:var(--text);}
+.fbtn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.add-btn{padding:7px 16px;border-radius:6px;border:none;background:rgba(61,126,255,.15);color:var(--accent);font-family:'Golos Text',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid rgba(61,126,255,.3);transition:all .15s;margin-left:auto;}
+.add-btn:hover{background:rgba(61,126,255,.25);}
+.count-lbl{font-size:12px;color:var(--text2);white-space:nowrap;}
+
+.table-wrap{padding:16px 24px;overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{text-align:left;padding:8px 10px;color:var(--text2);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);white-space:nowrap;}
+th.sortable{cursor:pointer;user-select:none;transition:color .15s;}
+th.sortable:hover{color:var(--text);}
+th.sortable.sort-asc::after{content:' ↑';color:var(--accent);}
+th.sortable.sort-desc::after{content:' ↓';color:var(--accent);}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
+tbody tr:hover{background:var(--surface2);}
+tbody tr.custom-row td:first-child::before{content:'★ ';color:var(--accent);font-size:9px;}
+td{padding:9px 10px;vertical-align:top;}
+.num{font-family:'Unbounded',sans-serif;font-size:10px;color:var(--accent);white-space:nowrap;}
+.desc{font-size:12px;max-width:300px;line-height:1.45;}
+.cmt{font-size:11px;color:var(--text2);max-width:200px;line-height:1.4;}
+.sum{font-size:12px;font-weight:600;text-align:right;white-space:nowrap;}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;cursor:pointer;border:1px solid transparent;transition:opacity .15s;}
+.badge:hover{opacity:.8;}
+.badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.s0{background:rgba(74,85,104,.2);color:#a0aec0;border-color:rgba(74,85,104,.4);}
+.s1{background:rgba(43,108,176,.2);color:#63b3ed;border-color:rgba(43,108,176,.4);}
+.s2{background:rgba(217,119,6,.2);color:#fbbf24;border-color:rgba(217,119,6,.4);}
+.s3{background:rgba(197,48,48,.2);color:#fc8181;border-color:rgba(197,48,48,.4);}
+.s4{background:rgba(39,103,73,.2);color:#68d391;border-color:rgba(39,103,73,.4);}
+.s5{background:rgba(107,33,168,.2);color:#d8b4fe;border-color:rgba(107,33,168,.4);}
+.pto-note{color:#63b3ed;font-size:11px;margin-top:3px;}
+.del-btn{background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;transition:all .15s;opacity:0;}
+tr:hover .del-btn{opacity:1;}
+.del-btn:hover{color:#fc8181;background:rgba(197,48,48,.15);}
+
+.empty{text-align:center;padding:48px;color:var(--text2);}
+
+/* Modals */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px);}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:440px;max-width:95vw;max-height:90vh;overflow-y:auto;}
+.modal h3{font-family:'Unbounded',sans-serif;font-size:12px;color:var(--accent);margin-bottom:4px;}
+.modal-desc{font-size:12px;color:var(--text2);margin-bottom:18px;line-height:1.5;}
+.sopts{display:flex;flex-direction:column;gap:7px;margin-bottom:14px;}
+.sopt{display:flex;align-items:center;gap:12px;padding:9px 14px;border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:all .15s;font-size:13px;}
+.sopt:hover{border-color:var(--accent);background:var(--surface2);}
+.sopt.sel{border-color:var(--accent);background:rgba(61,126,255,.1);}
+.sopt-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.field-label{font-size:11px;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em;}
+.field-wrap{margin-bottom:14px;}
+.finput{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-family:'Golos Text',sans-serif;font-size:13px;outline:none;}
+.finput:focus{border-color:var(--accent);}
+.finput::placeholder{color:var(--text2);}
+textarea.finput{resize:vertical;min-height:60px;}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:4px;}
+.btn-c{padding:8px 16px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);font-family:'Golos Text',sans-serif;font-size:13px;cursor:pointer;}
+.btn-s{padding:8px 20px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-family:'Golos Text',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
+.btn-s:hover{background:#2d6bef;}
+.modal-sep{height:1px;background:var(--border);margin:16px 0;}
+
+@media(max-width:700px){
+  .stats-bar{grid-template-columns:repeat(3,1fr);}
+  .header-title{display:none;}
+  .table-wrap{padding:10px;}
+  td,th{padding:7px 5px;}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">ПТО · Реестр смет</div>
+  <div class="header-title">Школа 525 мест, мкр. Антипова · Госконтракт №22/076 · ООО МЭС</div>
+  <div class="header-date" id="curdate"></div>
+</div>
+
+<div class="stats-bar" id="statsBar"></div>
+
+<div class="controls">
+  <input class="search" id="srch" type="text" placeholder="🔍  Поиск по номеру или описанию..." oninput="render()">
+  <button class="fbtn active" onclick="setF('all',this)">Все</button>
+  <button class="fbtn" onclick="setF('work',this)">В работе</button>
+  <button class="fbtn" onclick="setF('prob',this)">Проблемные</button>
+  <button class="fbtn" onclick="setF('done',this)">Принятые</button>
+  <span class="count-lbl" id="clbl"></span>
+  <button class="add-btn" onclick="openAdd()">＋ Добавить смету</button>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr>
+      <th style="width:32px">#</th>
+      <th class="sortable" id="th-num" onclick="toggleSort('num')">Номер сметы</th>
+      <th>Описание работ</th>
+      <th>Комментарий</th>
+      <th class="sortable" id="th-sum" onclick="toggleSort('sum')" style="text-align:right">Сумма с НДС</th>
+      <th>Статус</th>
+      <th style="width:32px"></th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div class="empty" id="emptyMsg" style="display:none">Ничего не найдено</div>
+</div>
+
+<!-- Status modal -->
+<div class="overlay" id="ov" style="display:none" onclick="closeM(event,'ov')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3 id="mnum"></h3>
+    <div class="modal-desc" id="mdesc"></div>
+    <div class="sopts" id="sopts"></div>
+    <div class="field-wrap">
+      <div class="field-label">Комментарий ПТО</div>
+      <textarea class="finput" id="mnote" placeholder="Ваш комментарий..."></textarea>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-c" onclick="document.getElementById('ov').style.display='none'">Отмена</button>
+      <button class="btn-s" onclick="saveS()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add smeta modal -->
+<div class="overlay" id="ov2" style="display:none" onclick="closeM(event,'ov2')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>Новая смета</h3>
+    <div class="modal-desc">Заполните данные новой сметы</div>
+    <div class="field-wrap">
+      <div class="field-label">Номер сметы *</div>
+      <input class="finput" id="anumber" type="text" placeholder="например: 02-01-04 доп.50">
+    </div>
+    <div class="field-wrap">
+      <div class="field-label">Описание работ *</div>
+      <textarea class="finput" id="adesc" placeholder="Блок А. АР. Описание работ..."></textarea>
+    </div>
+    <div class="field-wrap">
+      <div class="field-label">Сумма с НДС, ₽</div>
+      <input class="finput" id="asum" type="number" placeholder="0.00">
+    </div>
+    <div class="field-wrap">
+      <div class="field-label">Комментарий (исходящий)</div>
+      <input class="finput" id="acmt" type="text" placeholder="Дата, примечание...">
+    </div>
+    <div class="modal-sep"></div>
+    <div class="field-label" style="margin-bottom:10px">Начальный статус</div>
+    <div class="sopts" id="addsopts"></div>
+    <div class="modal-btns">
+      <button class="btn-c" onclick="document.getElementById('ov2').style.display='none'">Отмена</button>
+      <button class="btn-s" onclick="addSmeta()">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ST=[
+  {k:'s0',l:'Не начато',     c:'#a0aec0'},
+  {k:'s1',l:'Взял в работу', c:'#63b3ed'},
+  {k:'s2',l:'На проверке',   c:'#fbbf24'},
+  {k:'s3',l:'Замечания',     c:'#fc8181'},
+  {k:'s4',l:'Принято',       c:'#68d391'},
+  {k:'s5',l:'Нет КАЦ',       c:'#d8b4fe'},
+];
+
+const BASE=[
+  ['02-01-01 доп.7',    'Блок А, КР. Бурение отверстий в стенах, полах. Доп. работы.',                                 650556.37,  '02.06+22.09.2023+06.12.2023'],
+  ['02-01-01 доп.15',   'Блок А, КР. Приямок ПР-2. Доп. работы.',                                                     15801.92,   'САН в руки 15.01.2024'],
+  ['02-01-01 доп.17',   'Блок А. КР. Крыльцо №5. Доп. работы.',                                                       63971.41,   ''],
+  ['02-01-01 доп.19',   'Блок А. КР. Крыльцо №2. Доп. работы.',                                                       34072.52,   ''],
+  ['02-01-01 доп.22',   'Блок А. КР. Вход №2. Доп. работы.',                                                          743210.48,  'В руки САН 20.02.2024; 19.09.2025 ПО'],
+  ['02-01-01 доп.24',   'Блок А. КР. Сверление отверстий в перекрытиях для систем ОВК.',                              185659.03,  '15.03.2024'],
+  ['02-01-01 доп.29',   'Блок А. КР. Вентиляционная шахта №1 в осях 6/К-Ж. Доп. работы.',                            135633.59,  ''],
+  ['02-01-01 доп.30',   'Блок А. КР. Вентиляционная шахта №2.',                                                       246422.60,  '27.03.2026 ПО; 02.04.2026 @ Пим'],
+  ['02-01-01 доп.32',   'Блок А. КР. Крыльцо КР-13. Доп. работы.',                                                    127219.91,  '02.06.2026 ПО; 03.06.2026 @ Пим'],
+  ['02-01-01 доп.33',   'Блок А. КР. Бурение отверстий в стенах, перекрытиях.',                                       647150.51,  ''],
+  ['02-01-01 доп.35',   'Блок А. Бурение отверстий — силовое электрооборудование.',                                   73771.74,   ''],
+  ['02-01-01 доп.37',   'Блок А. Бурение отверстий в стенах, перекрытиях.',                                           76217.76,   ''],
+  ['02-01-01 доп.38',   'Блок А. Усиление стен и перекрытий (комната хранения оружия).',                              195778.84,  '21.01.2025; 16.01.2026 @ Пим'],
+  ['02-01-01 доп.39',   'Блок А. Усиление перекрытий. Доп. работы.',                                                  3408015.48, '16.01.2026 ПО'],
+  ['02-01-01 доп.40',   'Блок А. Усиление проемов, сверление и пробивка отверстий.',                                  1054802.26, '21.01.2026 ПО; 02.06.2026 @ Пим'],
+  ['02-01-01 доп.42',   'Блок А. АР. Пробивка штроб (сети связи).',                                                   81644.68,   ''],
+  ['02-01-01 доп.43',   'Блок А. Расширение проемов, демонтаж участков стен в подвале.',                              576834.98,  ''],
+  ['02-01-01 доп.44',   'Блок А. КР. Устройство металлических ограждений крылец.',                                    2028210.41, '03.06.2025 РДВ (нет КАЦ)'],
+  ['02-01-01 доп.45',   'Блок А. КР. Бурение отверстий в стенах, перекрытиях. Доп. работы.',                         1267015.85, ''],
+  ['02-01-01 изм.3 д.1','Блок А, КР. Пробивка и заделка отверстия для анкеровки.',                                   189319.76,  '20.10.2023; 13.05.2026 @ Пим'],
+  ['02-01-01 изм.8',    'Блок А. КР. Сверление отверстий в перекрытиях для ОВК.',                                    829488.48,  '27.09.2024'],
+  ['02-01-01 изм.23',   'Блок А. КР. Монолитные участки в осях 11-14/Е-С на отм. +3,900.',                           298518.86,  '27.09.2024; 21.01.2025'],
+  ['02-01-01 изм.31',   'Блок А. КР. Вентиляционная шахта №1 в осях 6/К-Ж.',                                         205216.92,  '27.09.2024; 26.03.2026 ПО'],
+  ['02-01-01 изм.32',   'Блок А. КР. Устройство приямка ПРм-1.',                                                      132569.93,  '27.03.2026 ПО; 13.05.2026 @ Пим'],
+  ['02-01-01 изм.41',   'Блок А. КР. Вход в подвал №1,2,3,4,5.',                                                      140268.94,  '03.06.2025 РДВ (нет КАЦ)'],
+  ['02-01-04 доп.39',   'Блок А. АР. Полы 3 этажа. Доп. работы.',                                                     166481.59,  '02.06.2026 ПО; 04.06.2026 @ Пим'],
+  ['02-01-04 доп.40',   'Блок А. АР. Внутренняя отделка — стены 3 этажа (кроме фотообоев).',                         1867.82,    ''],
+  ['02-01-04 доп.41',   'Блок А. АР. Отделка 1 этажа. Доп. работы.',                                                  595797.15,  ''],
+  ['02-01-04 доп.43',   'Блок А. АР. Чистовые полы подвала.',                                                         1225158.53, ''],
+  ['02-01-04 доп.44',   'Блок А. АР. Внутренняя отделка — потолки подвала.',                                          582549.48,  ''],
+  ['02-01-04 доп.45',   'Блок А. АР. Внутренняя отделка — стены подвала.',                                            1373234.68, ''],
+  ['02-01-04 доп.46',   'Блок А. АР. Чистовые полы 2 этажа. Доп. работы.',                                            1234655.49, '02.06.2026 ПО'],
+  ['02-01-04 доп.47',   'Блок А. АР. Внутренняя отделка — стены 2 этажа.',                                           48033.55,   '02.06.2026 ПО; 03.06.2026 @ Пим'],
+  ['02-01-04 доп.48',   'Блок А. АР. Обшивка крылец. Доп. работы.',                                                   548992.86,  ''],
+  ['02-01-04 доп.49',   'Блок А. АР. Кровля, водосточная система.',                                                    163318.02,  '02.06.2026 ПО; 03.06.2026 @ Пим'],
+  ['02-01-04 изм.15',   'Блок А. АР. Деформационные швы.',                                                            60196.90,   '27.09.2024'],
+  ['02-01-04 изм.31',   'Блок А. АР. Вентшахты на кровле в осях 6-9/А-И (2 секция).',                                58329.47,   '27.09.2024'],
+  ['02-01-04 изм.51',   'Блок А. АР. Двери противопожарные.',                                                         0,          'нет КАЦ'],
+  ['02-01-04 изм.52',   'Блок А. АР. Установка витражей.',                                                            4943081.89, 'нет КАЦ'],
+  ['02-01-04 изм.66',   'Блок А. АР. Отделка входов №1-5, №13, вент.шахты.',                                          728009.48,  '03.06.2026 @ Пим'],
+  ['02-01-04 изм.67',   'Блок А. АР. Чистовые полы подвала.',                                                         14635394.24,''],
+  ['02-01-04 изм.68',   'Блок А. АР. Внутренняя отделка — потолки подвала.',                                          3434641.93, ''],
+  ['02-01-04 изм.69',   'Блок А. АР. Внутренняя отделка — стены подвала.',                                            6778020.08, ''],
+  ['02-01-04 изм.70',   'Блок А. АР. Полы 2 этажа.',                                                                  11814553.94,'02.06.2026 ПО'],
+  ['02-01-04 изм.71',   'Блок А. АР. Внутренняя отделка — стены 2 этажа (кроме фотообоев).',                         6638331.58, '02.06.2026 ПО; 04.06.2026 @ Пим'],
+  ['02-01-04 изм.72',   'Блок А. АР. Внутренняя отделка — потолки 2 этажа.',                                          10425150.25,'02.06.2026 ПО; 04.06.2026 @ Пим'],
+  ['02-01-09 доп.1',    'Блок А. Силовое электрооборудование и электроосвещение. Доп. работы.',                       24312290.27,''],
+  ['02-01-09 доп.2',    'Блок А. Электрооборудование. Архитектурная подсветка фасада.',                               2131977.12, ''],
+  ['02-01-09 доп.3',    'Блок А. Электрооборудование. Установка розеток в полу.',                                     833408.80,  ''],
+  ['02-01-09 изм.1',    'Блок А. Электрооборудование. Молниезащита и заземление.',                                   1754234.65, '10.03.2025; 28.05.2026 @ Пим'],
+  ['02-01-09 изм.2',    'Блок А. Силовое электрооборудование и электроосвещение.',                                   38569177.66,''],
+  ['02-01-10 доп.2',    'Блок А. Сети связи. Кабель по первоначальному проекту.',                                     1903215.82, '03.10.2025 ПО; 14.11.2025 ПО'],
+  ['02-02-01 доп.5',    'Блок Б. КР. Бурение отверстий в стенах, перекрытиях.',                                      492593.41,  '27.09.2024'],
+  ['02-02-01 доп.6',    'Блок Б. КР. Бурение отверстий в стенах, перекрытиях.',                                      822243.30,  ''],
+  ['02-02-01 доп.10',   'Блок Б. АР. Пробивка отверстий в стенах и перекрытиях.',                                    792181.58,  ''],
+  ['02-02-01 доп.11',   'Блок Б. КР. Ограждения крылец. Доп. работы.',                                               873080.17,  ''],
+  ['02-02-02 доп.2',    'Блок Б. Водоснабжение и канализация. Оборудование МГН.',                                    387117.95,  '01.08.2024 ПО; 02.06.2026 ПО'],
+  ['02-02-03 изм.4',    'Блок Б. Теплоснабжение приточных установок.',                                               159433.58,  ''],
+  ['02-02-04 доп.2',    'Блок Б. АР. Стены 1-3 этажей, парапет, перегородки.',                                       2813474.96, ''],
+  ['02-02-04 доп.14',   'Блок Б. АР. Кирпичная кладка. Доп. работы.',                                               677789.84,  '16.03.2026 ПО (в счет НЗ)'],
+  ['02-02-04 доп.16',   'Блок Б. АР. Обшивка крылец и вентиляционной шахты.',                                        372540.66,  ''],
+  ['02-02-04 изм.1',    'Блок Б. АР. Стены, перемычки в осях 1-9/А-Ж на отм.-0,620.',                               2388088.55, '21.01.2025'],
+  ['02-02-04 изм.24',   'Блок Б. АР. Установка витражей В3, В4.',                                                    998882.92,  ''],
+  ['02-02-04 изм.26',   'Блок Б. АР. Чистовые полы 2-3 этажей.',                                                     1680794.98, '21.01.2026 ПО; 12.03.2026 @ Пим'],
+  ['02-02-09 доп.1',    'Блок Б. Силовое электрооборудование. Доп. работы.',                                         348161.88,  '05.05.2026 ПО; 02.06.2026 ПО'],
+  ['02-02-09 изм.1',    'Блок Б. Силовое электрооборудование и электроосвещение.',                                   13692274.55,'22.04.2026 ПО; 02.06.2026 ПО'],
+  ['04-01-01 доп.1',    'Блок А. Наружное электроосвещение. Доп. работы.',                                           2115760.19, '08.04.2026 ПО'],
+  ['04-01-01 доп.2',    'Электроснабжение ЛОС.',                                                                     740342.53,  ''],
+  ['04-01-01 изм.1',    'Блок А. Прокладка КЛ-0,4 кВ. Наружнее освещение.',                                         12410143.70,''],
+  ['04-01-02 доп.1',    'Блок Б. Прокладка КЛ-0,4 кВ. Наружнее освещение. Доп. работы.',                            261608.06,  ''],
+  ['04-01-02 изм.1',    'Блок Б. Прокладка КЛ-0,4 кВ.',                                                             2165048.01, ''],
+  ['06-01-02 доп.1',    'Блок А. НВК 1 этап. Ливневая канализация К2. Доп. работы.',                                706992.10,  '27.09.2024; 21.01.2025'],
+  ['07-01-01',          'Вертикальная планировка.',                                                                   3152066.27, '27.09.2024; 21.01.2025'],
+  ['07-01-01 доп.1',    'Вертикальная планировка. Доп. работы.',                                                     2293821.31, '21.01.2025'],
+  ['07-01-01 доп.3',    'Вертикальная планировка за границами участка.',                                              1205219.69, ''],
+  ['07-01-01 изм.2',    'Вертикальная планировка за границами участка.',                                              1347150.08, '04.07.2025 ПО; 06.08.2025 ПО'],
+  ['07-01-02 доп.1',    'Благоустройство. Отмостка.',                                                                858767.40,  '21.01.2025'],
+  ['07-01-03 доп.2',    'Озеленение. Устройство усиленного газона.',                                                 376472.46,  '29.01.2026 ПО; 02.06.2026 ПО'],
+  ['07-01-04 доп.2',    'Нанесение разметки беговых дорожек, поля, площадок.',                                       45894.30,   ''],
+  ['07-01-04 доп.3',    'Ограждение территории. Калитка для МГН.',                                                   62385.89,   ''],
+  ['09-01-03',          'Блок А. Пусконаладочные работы. Пожарная сигнализация, охранная сигнализация, сети связи.', 11067195.72,''],
+];
+
+const KEY='smety_v3';
+let stored={statuses:{},custom:[]};
+let curEdit=null, fMode='all', sortCol=null, sortDir=1;
+let addStatus='s0';
+
+function load(){
+  try{ stored=JSON.parse(localStorage.getItem(KEY)||'{"statuses":{},"custom":[]}'); }
+  catch(e){ stored={statuses:{},custom:[]}; }
+  if(!stored.statuses) stored.statuses={};
+  if(!stored.custom) stored.custom=[];
+}
+function save(){ localStorage.setItem(KEY,JSON.stringify(stored)); }
+
+function allData(){
+  // BASE entries tagged with custom:false, custom entries with custom:true
+  const base=BASE.map((r,i)=>({id:'b'+i, num:r[0], desc:r[1], sum:r[2], cmt:r[3], custom:false}));
+  const cust=stored.custom.map(r=>({id:r.id, num:r.num, desc:r.desc, sum:r.sum, cmt:r.cmt, custom:true}));
+  return [...base,...cust];
+}
+
+function getSt(id){ return stored.statuses[id]||{s:'s0',n:''}; }
+function fmt(v){ return v>0?v.toLocaleString('ru-RU',{maximumFractionDigits:0})+' ₽':'—'; }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderStats(){
+  const all=allData();
+  const cnt={s0:0,s1:0,s2:0,s3:0,s4:0,s5:0};
+  const sm={s0:0,s1:0,s2:0,s3:0,s4:0,s5:0};
+  all.forEach(r=>{ const d=getSt(r.id); cnt[d.s]++; sm[d.s]+=r.sum; });
+  document.getElementById('statsBar').innerHTML=ST.map(s=>`
+    <div class="stat-card" style="--cc:${s.c}" onclick="filterSt('${s.k}')">
+      <div class="stat-label">${s.l}</div>
+      <div class="stat-count" style="color:${s.c}">${cnt[s.k]}</div>
+      <div class="stat-sum">${sm[s.k]>0?fmt(sm[s.k]):''}</div>
+    </div>`).join('');
+}
+
+function render(){
+  renderStats();
+  const q=document.getElementById('srch').value.toLowerCase();
+  let rows=allData().map(r=>({...r, d:getSt(r.id)}));
+  if(fMode==='work') rows=rows.filter(x=>x.d.s==='s1'||x.d.s==='s2');
+  else if(fMode==='prob') rows=rows.filter(x=>x.d.s==='s3'||x.d.s==='s5');
+  else if(fMode==='done') rows=rows.filter(x=>x.d.s==='s4');
+  else if(fMode.startsWith('st:')) rows=rows.filter(x=>x.d.s===fMode.slice(3));
+  if(q) rows=rows.filter(x=>x.num.toLowerCase().includes(q)||x.desc.toLowerCase().includes(q)||(x.d.n||'').toLowerCase().includes(q));
+
+  // Sort
+  if(sortCol==='sum') rows.sort((a,b)=>(a.sum-b.sum)*sortDir);
+  else if(sortCol==='num') rows.sort((a,b)=>a.num.localeCompare(b.num,'ru')*sortDir);
+
+  // Update sort headers
+  ['num','sum'].forEach(c=>{
+    const th=document.getElementById('th-'+c);
+    th.className='sortable'+(sortCol===c?(sortDir===1?' sort-asc':' sort-desc'):'');
+  });
+
+  document.getElementById('clbl').textContent='Показано: '+rows.length+' из '+allData().length;
+  const em=document.getElementById('emptyMsg'), tb=document.getElementById('tbody');
+  if(!rows.length){tb.innerHTML='';em.style.display='block';return;}
+  em.style.display='none';
+
+  tb.innerHTML=rows.map((x,idx)=>{
+    const st=ST.find(s=>s.k===x.d.s);
+    const note=x.d.n?`<div class="pto-note">📝 ${esc(x.d.n)}</div>`:'';
+    const delBtn=x.custom?`<button class="del-btn" onclick="delSmeta('${x.id}')" title="Удалить">✕</button>`:'<td></td>';
+    return `<tr class="${x.custom?'custom-row':''}">
+      <td style="color:var(--text2);font-size:11px">${idx+1}</td>
+      <td><div class="num">${esc(x.num)}</div></td>
+      <td><div class="desc">${esc(x.desc)}</div></td>
+      <td><div class="cmt">${esc(x.cmt)||'—'}${note}</div></td>
+      <td class="sum" style="color:${x.sum>1000000?'#fbbf24':'var(--text)'}">${fmt(x.sum)}</td>
+      <td><span class="badge ${x.d.s}" onclick="openM('${x.id}','${esc(x.num)}','${esc(x.desc).replace(/'/g,"\\'")}')"><span class="dot"></span>${st.l}</span></td>
+      <td>${delBtn}</td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleSort(col){
+  if(sortCol===col) sortDir*=-1;
+  else{ sortCol=col; sortDir=-1; } // first click = desc (большие сначала)
+  render();
+}
+
+function setF(f,btn){
+  fMode=f;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+function filterSt(k){
+  fMode='st:'+k;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('srch').value='';
+  render();
+}
+
+function closeM(e,id){ if(e.target===document.getElementById(id)) document.getElementById(id).style.display='none'; }
+
+function openM(id,num,desc){
+  curEdit=id;
+  const d=getSt(id);
+  document.getElementById('mnum').textContent=num;
+  document.getElementById('mdesc').textContent=desc;
+  document.getElementById('mnote').value=d.n||'';
+  document.getElementById('sopts').innerHTML=ST.map(s=>`
+    <div class="sopt ${d.s===s.k?'sel':''}" id="o_${s.k}" onclick="selS('${s.k}')">
+      <div class="sopt-dot" style="background:${s.c}"></div>${s.l}
+    </div>`).join('');
+  document.getElementById('ov').style.display='flex';
+}
+function selS(k){
+  document.querySelectorAll('#sopts .sopt').forEach(el=>el.classList.remove('sel'));
+  document.getElementById('o_'+k).classList.add('sel');
+}
+function saveS(){
+  if(!curEdit) return;
+  const sel=document.querySelector('#sopts .sopt.sel');
+  if(!sel) return;
+  stored.statuses[curEdit]={s:sel.id.replace('o_',''), n:document.getElementById('mnote').value.trim()};
+  save(); render();
+  document.getElementById('ov').style.display='none';
+}
+
+function openAdd(){
+  addStatus='s0';
+  document.getElementById('anumber').value='';
+  document.getElementById('adesc').value='';
+  document.getElementById('asum').value='';
+  document.getElementById('acmt').value='';
+  document.getElementById('addsopts').innerHTML=ST.map(s=>`
+    <div class="sopt ${s.k==='s0'?'sel':''}" id="ao_${s.k}" onclick="selAddS('${s.k}')">
+      <div class="sopt-dot" style="background:${s.c}"></div>${s.l}
+    </div>`).join('');
+  document.getElementById('ov2').style.display='flex';
+  setTimeout(()=>document.getElementById('anumber').focus(),100);
+}
+function selAddS(k){
+  addStatus=k;
+  document.querySelectorAll('#addsopts .sopt').forEach(el=>el.classList.remove('sel'));
+  document.getElementById('ao_'+k).classList.add('sel');
+}
+function addSmeta(){
+  const num=document.getElementById('anumber').value.trim();
+  const desc=document.getElementById('adesc').value.trim();
+  if(!num||!desc){ alert('Заполните номер и описание сметы'); return; }
+  const sum=parseFloat(document.getElementById('asum').value)||0;
+  const cmt=document.getElementById('acmt').value.trim();
+  const sel=document.querySelector('#addsopts .sopt.sel');
+  const sk=sel?sel.id.replace('ao_',''):'s0';
+  const id='c'+Date.now();
+  stored.custom.push({id,num,desc,sum,cmt});
+  stored.statuses[id]={s:sk,n:''};
+  save(); render();
+  document.getElementById('ov2').style.display='none';
+}
+function delSmeta(id){
+  if(!confirm('Удалить эту смету?')) return;
+  stored.custom=stored.custom.filter(r=>r.id!==id);
+  delete stored.statuses[id];
+  save(); render();
+}
+
+document.getElementById('curdate').textContent=new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
+load(); render();
+</script>
+</body>
+</html>
